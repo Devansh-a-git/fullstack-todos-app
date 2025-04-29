@@ -1,44 +1,62 @@
--- Create Users table
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Create Tags table
+DROP TABLE IF EXISTS Tags;
+
+CREATE TABLE IF NOT EXISTS Tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- Update Users table to use INT for id
+DROP TABLE IF EXISTS Users CASCADE;
 
 CREATE TABLE IF NOT EXISTS Users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create Todos table
+-- Update Todos table to use INT for user_id
+DROP TABLE IF EXISTS Todo_Tags;
+DROP TABLE IF EXISTS Todos CASCADE;
+
 CREATE TABLE IF NOT EXISTS Todos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     priority VARCHAR(10) CHECK (priority IN ('High', 'Medium', 'Low')),
-    user_id UUID NOT NULL,
+    completed BOOLEAN DEFAULT FALSE,
+    user_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
 );
 
--- Create Tags table
-CREATE TABLE IF NOT EXISTS Tags (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(50) NOT NULL UNIQUE
-);
-
--- Create Todo_Tags table (Many-to-Many relationship)
+-- Create Todo_Tags table (Many-to-Many relationship for tags)
 CREATE TABLE IF NOT EXISTS Todo_Tags (
-    todo_id UUID NOT NULL,
-    tag_id UUID NOT NULL,
+    todo_id INT NOT NULL,
+    tag_id INT NOT NULL,
     PRIMARY KEY (todo_id, tag_id),
     FOREIGN KEY (todo_id) REFERENCES Todos(id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES Tags(id) ON DELETE CASCADE
 );
 
--- Create Notes table
+-- Create Todo_Assigned_Users table (Many-to-Many relationship for assigned users)
+CREATE TABLE IF NOT EXISTS Todo_Assigned_Users (
+    todo_id INT NOT NULL,
+    user_id INT NOT NULL,
+    PRIMARY KEY (todo_id, user_id),
+    FOREIGN KEY (todo_id) REFERENCES Todos(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
+);
+
+-- Update Notes table
+DROP TABLE IF EXISTS Notes;
+
 CREATE TABLE IF NOT EXISTS Notes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id SERIAL PRIMARY KEY,
     content TEXT NOT NULL,
-    todo_id UUID NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    todo_id INT NOT NULL,
     FOREIGN KEY (todo_id) REFERENCES Todos(id) ON DELETE CASCADE
 );
