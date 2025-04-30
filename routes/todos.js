@@ -1,10 +1,11 @@
 const express = require("express");
 const pool = require("../index");
 const router = express.Router();
+const { Parser } = require('json2csv');
 
 // Add pagination to GET /todos
 router.get("/", async (req, res) => {
-  const { user_id, page = 1, limit = 10 } = req.query; // Default to page 1 and limit 10
+  const { user_id, page = 1, limit = 10, search = "" } = req.query; // Default to page 1 and limit 10
   if (!user_id) {
     return res.status(400).send("user_id query parameter is required");
   }
@@ -13,13 +14,41 @@ router.get("/", async (req, res) => {
 
   try {
     const todosResult = await pool.query(
-      "SELECT * FROM Todos WHERE user_id = $1 LIMIT $2 OFFSET $3",
-      [user_id, limit, offset]
+      `SELECT t.*, 
+              COALESCE(ARRAY_AGG(DISTINCT tg.name) FILTER (WHERE tg.name IS NOT NULL), '{}') AS tags, 
+              COALESCE(ARRAY_AGG(DISTINCT u.username) FILTER (WHERE u.username IS NOT NULL), '{}') AS assigned_users
+       FROM Todos t
+       LEFT JOIN Todo_Tags tt ON t.id = tt.todo_id
+       LEFT JOIN Tags tg ON tt.tag_id = tg.id
+       LEFT JOIN Todo_Assigned_Users tu ON t.id = tu.todo_id
+       LEFT JOIN Users u ON tu.user_id = u.id
+       WHERE t.user_id = $1 AND (t.title ILIKE $4 OR t.description ILIKE $4)
+       GROUP BY t.id
+       LIMIT $2 OFFSET $3`,
+      [user_id, limit, offset, `%${search}%`]
+    );
+
+    const totalTodosResult = await pool.query(
+      `SELECT COUNT(*) AS total 
+       FROM Todos 
+       WHERE user_id = $1 AND (title ILIKE $2 OR description ILIKE $2)`,
+      [user_id, `%${search}%`]
     );
 
     const todos = todosResult.rows;
+    const total = parseInt(totalTodosResult.rows[0].total, 10);
+    const totalPages = Math.ceil(total / limit);
 
-    res.json(todos);
+    res.json({
+      todos,
+      pagination: {
+        total,
+        totalPages,
+        currentPage: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        numberOfPages: totalPages, // Include number of pages
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).send("Error fetching todos for the user");
@@ -112,33 +141,54 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT /todos/:id
-router.put("/:id", async (req, res) => {
+// PATCH /todos/:id
+router.patch("/:id", async (req, res) => {
   const { id } = req.params;
-  const { title, description, priority, tags } = req.body; // Accept tags in the request body
+  const {
+    title,
+    description,
+    priority,
+    completed,
+    tags,
+    assignedUsers,
+    notes,
+  } = req.body;
+
   try {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
 
-      // Update the todo
-      const todoResult = await client.query(
-        "UPDATE Todos SET title = $1, description = $2, priority = $3 WHERE id = $4 RETURNING *",
-        [title, description, priority, id]
-      );
+      // Update the todo fields
+      const updateQuery = `
+        UPDATE Todos
+        SET title = COALESCE($1, title),
+            description = COALESCE($2, description),
+            priority = COALESCE($3, priority),
+            completed = COALESCE($4, completed)
+        WHERE id = $5
+        RETURNING *;
+      `;
+      const todoResult = await client.query(updateQuery, [
+        title,
+        description,
+        priority,
+        completed,
+        id,
+      ]);
+
       if (todoResult.rows.length === 0) {
         await client.query("ROLLBACK");
         return res.status(404).send("Todo not found");
       }
+
       const todo = todoResult.rows[0];
 
-      // Handle tags
-      if (tags && tags.length > 0) {
-        // Remove existing tag associations
+      // Update tags if provided
+      if (tags) {
         await client.query("DELETE FROM Todo_Tags WHERE todo_id = $1", [id]);
 
         for (const tag of tags) {
-          // Check if the tag exists
           let tagResult = await client.query(
             "SELECT * FROM Tags WHERE name = $1",
             [tag]
@@ -146,7 +196,6 @@ router.put("/:id", async (req, res) => {
           let tagId;
 
           if (tagResult.rows.length === 0) {
-            // Insert the tag if it doesn't exist
             tagResult = await client.query(
               "INSERT INTO Tags (name) VALUES ($1) RETURNING *",
               [tag]
@@ -154,10 +203,36 @@ router.put("/:id", async (req, res) => {
           }
           tagId = tagResult.rows[0].id;
 
-          // Associate the tag with the todo
           await client.query(
             "INSERT INTO Todo_Tags (todo_id, tag_id) VALUES ($1, $2)",
             [id, tagId]
+          );
+        }
+      }
+
+      // Update assigned users if provided
+      if (assignedUsers) {
+        await client.query(
+          "DELETE FROM Todo_Assigned_Users WHERE todo_id = $1",
+          [id]
+        );
+
+        for (const userId of assignedUsers) {
+          await client.query(
+            "INSERT INTO Todo_Assigned_Users (todo_id, user_id) VALUES ($1, $2)",
+            [id, userId]
+          );
+        }
+      }
+
+      // Handle notes
+      if (notes) {
+        await client.query("DELETE FROM Notes WHERE todo_id = $1", [id]);
+
+        for (const note of notes) {
+          await client.query(
+            "INSERT INTO Notes (todo_id, content) VALUES ($1, $2)",
+            [id, note["content"]]
           );
         }
       }
@@ -220,8 +295,8 @@ router.get("/:id", async (req, res) => {
       "SELECT username FROM Users u INNER JOIN Todo_Assigned_Users tau ON u.id = tau.user_id WHERE tau.todo_id = $1",
       [id]
     );
-    todo.assignedUsers =
-      assignedUsersResult.rows.map((row) => `@${row.username}`) || [];
+    todo.assigned_users =
+      assignedUsersResult.rows.map((row) => row.username) || [];
 
     // Fetch notes associated with the todo
     const notesResult = await pool.query(
@@ -234,6 +309,49 @@ router.get("/:id", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Error fetching the todo");
+  }
+});
+
+router.get('/export', async (req, res) => {
+  const { user_id, format = 'json' } = req.query;
+
+  if (!user_id) {
+    return res.status(400).send("user_id query parameter is required");
+  }
+
+  try {
+    const todosResult = await pool.query(
+      `SELECT t.*, 
+              COALESCE(ARRAY_AGG(DISTINCT tg.name) FILTER (WHERE tg.name IS NOT NULL), '{}') AS tags, 
+              COALESCE(ARRAY_AGG(DISTINCT u.username) FILTER (WHERE u.username IS NOT NULL), '{}') AS assigned_users,
+              COALESCE(JSON_AGG(DISTINCT n) FILTER (WHERE n.content IS NOT NULL), '[]') AS notes
+       FROM Todos t
+       LEFT JOIN Todo_Tags tt ON t.id = tt.todo_id
+       LEFT JOIN Tags tg ON tt.tag_id = tg.id
+       LEFT JOIN Todo_Assigned_Users tu ON t.id = tu.todo_id
+       LEFT JOIN Users u ON tu.user_id = u.id
+       LEFT JOIN Notes n ON t.id = n.todo_id
+       WHERE t.user_id = $1
+       GROUP BY t.id`,
+      [user_id]
+    );
+
+    const todos = todosResult.rows;
+
+    if (format === 'csv') {
+      const fields = ['id', 'title', 'description', 'priority', 'completed', 'tags', 'assigned_users', 'notes'];
+      const json2csvParser = new Parser({ fields });
+      const csv = json2csvParser.parse(todos);
+
+      res.header('Content-Type', 'text/csv');
+      res.attachment('todos.csv');
+      return res.send(csv);
+    }
+
+    res.json(todos);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error exporting todos");
   }
 });
 

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List Application</title>
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Todo List</h1>
+            <div class="user-controls">
+                <button id="export-btn" class="btn btn-secondary">
+                    <i class="fas fa-file-export"></i> Export
+                </button>
+                
+                <!-- User Switcher Dropdown -->
+                <div class="user-switcher">
+                    <button class="user-switcher-btn">
+                        <span class="current-username">Current User</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="user-dropdown">
+                        <div class="user-dropdown-item" data-username="john_doe">
+                            <img src="placeholder-avatar.png" alt="John Doe" class="avatar-small">
+                            <span>John Doe</span>
+                        </div>
+                        <div class="user-dropdown-item" data-username="jane_smith">
+                            <img src="placeholder-avatar.png" alt="Jane Smith" class="avatar-small">
+                            <span>Jane Smith</span>
+                        </div>
+                        <div class="user-dropdown-item" data-username="bob_brown">
+                            <img src="placeholder-avatar.png" alt="Bob Brown" class="avatar-small">
+                            <span>Bob Brown</span>
+                        </div>
+                        <div class="user-dropdown-item" data-username="alice_johnson">
+                            <img src="placeholder-avatar.png" alt="Alice Johnson" class="avatar-small">
+                            <span>Alice Johnson</span>
+                        </div>
+                        <div class="user-dropdown-item" data-username="charlie_davis">
+                            <img src="placeholder-avatar.png" alt="Charlie Davis" class="avatar-small">
+                            <span>Charlie Davis</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="user-profile">
+                    <span class="username">Current User</span>
+                    <img src="placeholder-avatar.png" alt="User avatar" class="avatar">
+                </div>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <aside class="app-sidebar">
+                <div class="filter-section">
+                    <h3>Filters</h3>
+                    <div class="filter-group">
+                        <h4>Priority</h4>
+                        <div class="filter-options">
+                            <label><input type="checkbox" value="high"> High</label>
+                            <label><input type="checkbox" value="medium"> Medium</label>
+                            <label><input type="checkbox" value="low"> Low</label>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <h4>Tags</h4>
+                        <div class="filter-options tags-filter">
+                            <!-- Tag filters will be populated dynamically -->
+                            <div class="tag-placeholder"></div>
+                            <div class="tag-placeholder"></div>
+                            <div class="tag-placeholder"></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="todo-content">
+                <div class="todo-actions">
+                    <button id="add-todo-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Todo
+                    </button>
+                    <div class="search-container">
+                        <input type="text" placeholder="Search todos..." class="search-input">
+                        <button class="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="todo-list">
+                    <!-- Sample todo item - this is the basic structure to be implemented -->
+                    <div class="todo-item" data-id="1">
+                        <div class="todo-checkbox">
+                            <input type="checkbox" id="todo-1">
+                            <label for="todo-1"></label>
+                        </div>
+                        <div class="todo-content">
+                            <h3 class="todo-title">Complete the todo app assignment</h3>
+                            <div class="todo-meta">
+                                <span class="todo-priority priority-high">High</span>
+                                <div class="todo-tags">
+                                    <span class="tag">work</span>
+                                    <span class="tag">coding</span>
+                                </div>
+                                <div class="todo-users">
+                                    <span class="user-tag">@john_doe</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="todo-actions">
+                            <button class="todo-note-btn" title="Add note">
+                                <i class="fas fa-sticky-note"></i>
+                            </button>
+                            <button class="todo-edit-btn" title="Edit todo">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="todo-delete-btn" title="Delete todo">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- More todo items would be dynamically generated here -->
+                    <!-- Pagination controls would appear below -->
+                </div>
+
+                <div class="pagination-controls">
+                    <button class="pagination-prev" disabled>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <div class="pagination-pages">
+                        <span class="pagination-current">1</span> / <span class="pagination-total">10</span>
+                    </div>
+                    <button class="pagination-next">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- These script paths are placeholders. The candidate will implement their chosen framework -->
+    <script src="main.js"></script>
+</body>
+</html> 

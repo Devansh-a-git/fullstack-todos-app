@@ -4,12 +4,15 @@ const todoRoutes = require("./routes/todos");
 const noteRoutes = require("./routes/notes");
 const userRoutes = require("./routes/users");
 const morgan = require("morgan");
+const cors = require("cors");
 
 const app = express();
 const PORT = 3000;
 
 app.use(bodyParser.json());
 app.use(morgan("dev")); // Add logging middleware
+// Enable CORS
+app.use(cors());
 
 app.get("/", (req, res) => {
   res.send("Todo List APP is running!");
