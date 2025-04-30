@@ -34,24 +34,32 @@ const Header = () => {
   };
 
   const handleExport = async (format) => {
-    if (format === "JSON") {
+    if (format === "json") {
       setJsonLoading(true);
-    } else if (format === "CSV") {
+    } else if (format === "csv") {
       setCsvLoading(true);
     }
-    const url = `${import.meta.env.VITE_BASE_URL}/api/todos/export?user_id=${
+    const url = `${import.meta.env.VITE_BASE_URL}/api/todos/${
       selectedUser?.id
-    }&format=${format}`;
+    }/export?format=${format}`;
     try {
       const response = await fetch(url);
-      const data = await response.json();
-      console.log("Todo details:", data);
+      if (!response.ok) {
+        throw new Error("Failed to download file");
+      }
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `todos.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (error) {
-      console.error("Error fetching todo details:", error);
+      console.error("Error downloading", error);
     } finally {
-      if (format === "JSON") {
+      if (format === "json") {
         setJsonLoading(false);
-      } else if (format === "CSV") {
+      } else if (format === "csv") {
         setCsvLoading(false);
       }
     }
@@ -69,7 +77,7 @@ const Header = () => {
             variant="outlined"
             startIcon={<DownloadIcon />}
             sx={{ textTransform: "none" }}
-            onClick={() => handleExport("JSON")}
+            onClick={() => handleExport("json")}
           >
             {jsonLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center" }}>
@@ -84,13 +92,11 @@ const Header = () => {
             variant="outlined"
             startIcon={<DownloadIcon />}
             sx={{ textTransform: "none" }}
-            onClick={() => handleExport("CSV")}
+            onClick={() => handleExport("csv")}
           >
             {csvLoading ? (
-              <Box
-                sx={{ display: "flex", justifyContent: "center", marginTop: 4 }}
-              >
-                <CircularProgress />
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <CircularProgress size="15px" />
               </Box>
             ) : (
               "Export as CSV"

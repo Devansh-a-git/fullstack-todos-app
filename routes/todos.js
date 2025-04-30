@@ -1,7 +1,7 @@
 const express = require("express");
 const pool = require("../index");
 const router = express.Router();
-const { Parser } = require('json2csv');
+const { Parser } = require("json2csv");
 
 // Add pagination to GET /todos
 router.get("/", async (req, res) => {
@@ -312,10 +312,13 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.get('/export', async (req, res) => {
-  const { user_id, format = 'json' } = req.query;
+router.get("/:id/export", async (req, res) => {
+  const { id } = req.params;
+  const { format = "json" } = req.query;
 
-  if (!user_id) {
+  console.log("NEWWWWWW :::: ", id, format);
+
+  if (!id) {
     return res.status(400).send("user_id query parameter is required");
   }
 
@@ -333,18 +336,27 @@ router.get('/export', async (req, res) => {
        LEFT JOIN Notes n ON t.id = n.todo_id
        WHERE t.user_id = $1
        GROUP BY t.id`,
-      [user_id]
+      [id]
     );
 
     const todos = todosResult.rows;
 
-    if (format === 'csv') {
-      const fields = ['id', 'title', 'description', 'priority', 'completed', 'tags', 'assigned_users', 'notes'];
+    if (format === "csv") {
+      const fields = [
+        "id",
+        "title",
+        "description",
+        "priority",
+        "completed",
+        "tags",
+        "assigned_users",
+        "notes",
+      ];
       const json2csvParser = new Parser({ fields });
       const csv = json2csvParser.parse(todos);
 
-      res.header('Content-Type', 'text/csv');
-      res.attachment('todos.csv');
+      res.header("Content-Type", "text/csv");
+      res.attachment("todos.csv");
       return res.send(csv);
     }
 
