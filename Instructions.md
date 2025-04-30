@@ -7,7 +7,7 @@ Have done some things extra than what was mentioned.
 
 
 Frontend : - React js
-  Have not focused on the design rather on functionality.
+**  Have not focused on the design rather on functionality.**
   Since it was communicated that it is gonna 70% frontend role have tried to showcase the basic required skills. 
   - drilling, react context API, debouncing, reusable components, custom hooks
 
@@ -17,7 +17,7 @@ Backend : - Node.js - cloud postgreSQL
 
 
 
-Commands to run the project on local : 
+**Commands to run the project on local : **
 
 Backend - 
     node server.js
