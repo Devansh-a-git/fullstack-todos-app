@@ -1,6 +1,6 @@
 import { Box, Modal, TextField, Button, Tooltip } from "@mui/material";
 import React, { useState } from "react";
-import { MODAL_STYLES } from "../constants";
+import { MODAL_STYLES } from "../../utils/constants";
 
 const AddNoteModal = ({ open, handleClose, submitAction, todoId }) => {
   const [noteContent, setNoteContent] = useState("");

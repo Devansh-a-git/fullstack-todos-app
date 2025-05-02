@@ -1,8 +1,8 @@
 import React from "react";
-import TodoBox from "./TodoBox";
-import { DEATIL_VARIANT, MODAL_STYLES } from "../constants";
+import TodoBox from "../TodoBox";
+import { DEATIL_VARIANT, MODAL_STYLES } from "../../utils/constants";
 import { Box, CircularProgress, Modal } from "@mui/material";
-import TodoDetailBox from "./TodoDetailBox";
+import TodoDetailBox from "../TodoDetailBox";
 
 const TodoDetailsModal = ({
   todoDetails,

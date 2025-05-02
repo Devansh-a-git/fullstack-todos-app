@@ -7,7 +7,7 @@ import {
   Divider,
   CircularProgress,
 } from "@mui/material";
-import { CUSTOM_SCROLLBAR_STYLES } from "../constants";
+import { CUSTOM_SCROLLBAR_STYLES } from "../utils/constants";
 
 const Sidebar = ({
   tags,

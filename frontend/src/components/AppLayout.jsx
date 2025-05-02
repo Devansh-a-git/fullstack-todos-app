@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
-import Hero from "./Hero";
+import TodoManager from "./TodoManager";
 import { Box } from "@mui/material";
 import { useSelectedUser } from "../context/UsersContext";
-import { addIsSelected } from "../utilityFunctions";
-import { PRIORITY_LIST } from "../constants";
+import { addIsSelected } from "../utils/utilityFunctions";
+import { PRIORITY_LIST } from "../utils/constants";
 
-const MainComponent = () => {
+const AppLayout = () => {
   const [tags, setTags] = useState([]);
   const [priorityList, setPriorityList] = useState(
     addIsSelected(PRIORITY_LIST, true)
@@ -76,7 +76,7 @@ const MainComponent = () => {
           loading={loading}
         />
         {selectedUser ? (
-          <Hero
+          <TodoManager
             selectedUser={selectedUser}
             tags={tags}
             priorityList={priorityList}
@@ -87,4 +87,4 @@ const MainComponent = () => {
   );
 };
 
-export default MainComponent;
+export default AppLayout;

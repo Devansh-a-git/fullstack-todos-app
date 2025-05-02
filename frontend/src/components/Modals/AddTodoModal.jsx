@@ -12,8 +12,8 @@ import {
   Tooltip,
 } from "@mui/material";
 import React, { useState } from "react";
-import { MODAL_STYLES } from "../constants";
-import { useSelectedUser, useUsers } from "../context/UsersContext";
+import { MODAL_STYLES } from "../../utils/constants";
+import { useSelectedUser, useUsers } from "../../context/UsersContext";
 
 const AddTodoModal = ({ open, handleClose, submitAction }) => {
   const users = useUsers();

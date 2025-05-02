@@ -1,18 +1,18 @@
 import React from "react";
-import { Box, Button, TextField, Typography, Divider } from "@mui/material";
+import { Box, Button, TextField, Divider } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import TodoList from "./todoList";
 import { useState, useEffect, useRef } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
-import { CUSTOM_SCROLLBAR_STYLES } from "../constants";
-import AddTodoModal from "./AddTodoModal";
+import { CUSTOM_SCROLLBAR_STYLES } from "../utils/constants";
 import axios from "axios";
 import Pagination from "./Pagination";
-import TodoDetailsModal from "./TodoDetailsModal";
-import AddNoteModal from "./AddNoteModal";
-import EditTodoModal from "./EditTodoModal";
+import AddTodoModal from "./Modals/AddTodoModal";
+import TodoDetailsModal from "./Modals/TodoDetailsModal";
+import AddNoteModal from "./Modals/AddNoteModal";
+import EditTodoModal from "./Modals/EditTodoModal";
 
-const Hero = ({ selectedUser, tags, priorityList }) => {
+const TodoManager = ({ selectedUser, tags, priorityList }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const debounceTimeout = useRef(null);
   const [todos, setTodos] = useState([]);
@@ -326,4 +326,4 @@ const Hero = ({ selectedUser, tags, priorityList }) => {
   );
 };
 
-export default Hero;
+export default TodoManager;

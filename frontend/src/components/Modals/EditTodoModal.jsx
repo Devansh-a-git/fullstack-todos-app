@@ -12,8 +12,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import React, { useState, useEffect } from "react";
-import { MODAL_STYLES } from "../constants";
-import { useSelectedUser, useUsers } from "../context/UsersContext";
+import { MODAL_STYLES } from "../../utils/constants";
+import { useSelectedUser, useUsers } from "../../context/UsersContext";
 
 const EditTodoModal = ({
   open,
