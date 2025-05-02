@@ -18,16 +18,16 @@ i have created a new free postgres instance using render, have given the complet
 
 **1.Backend
 
-  cd fullstack-todos-app
-  npm Install
-  node server.js
+  - cd fullstack-todos-app
+  - npm Install
+  - node server.js
 
 2. Frontend -:
    
-  cd frontend
-  npm install
-  npm run dev
+  - cd frontend
+  - npm install
+  - npm run dev
 
 3. Open browser  
-visit - http://localhost:5173/
+  - visit - http://localhost:5173/
 or any port that you have ran your frontend on.****
