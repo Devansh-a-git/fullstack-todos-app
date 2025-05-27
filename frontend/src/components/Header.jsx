@@ -5,6 +5,7 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Avatar from "@mui/material/Avatar";
 import DownloadIcon from "@mui/icons-material/Download";
+import axios from "axios";
 
 import {
   Box,
@@ -65,6 +66,24 @@ const Header = () => {
     }
   };
 
+  const handleImport = async (e) => {
+    try {
+      const file = e.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append("file", file);
+      const url = `${import.meta.env.VITE_BASE_URL}/api/todos/import?user_id=${
+        selectedUser?.id
+      }`;
+
+      const res = await axios.post(url, formData);
+    } catch (error) {
+      console.error("Error uploading file", error);
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   return (
     <Box bgcolor="white" sx={{ boxShadow: 3, width: "100%" }}>
       <Toolbar sx={{ justifyContent: "space-between" }}>
@@ -73,6 +92,13 @@ const Header = () => {
         </Typography>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <input
+            type="file"
+            aria-label="Import as CSV"
+            accept=".csv"
+            onChange={handleImport}
+          />
+
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}

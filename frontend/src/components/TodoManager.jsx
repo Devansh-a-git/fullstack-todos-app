@@ -12,7 +12,8 @@ import TodoDetailsModal from "./Modals/TodoDetailsModal";
 import AddNoteModal from "./Modals/AddNoteModal";
 import EditTodoModal from "./Modals/EditTodoModal";
 
-const TodoManager = ({ selectedUser, tags, priorityList }) => {
+const TodoManager = ({ filters, selectedUser, tags, priorityList }) => {
+  const [sortBy, setSortBy] = useState({ date: "desc" });
   const [searchQuery, setSearchQuery] = useState("");
   const debounceTimeout = useRef(null);
   const [todos, setTodos] = useState([]);
@@ -30,12 +31,14 @@ const TodoManager = ({ selectedUser, tags, priorityList }) => {
   const fetchTodos = async (query = "") => {
     setLoading(true);
     try {
+      const body = { filters, sortBy };
       const url = `${import.meta.env.VITE_BASE_URL}/api/todos?user_id=${
         selectedUser?.id
       }&page=${currentPage}&search=${query}`;
 
-      const response = await fetch(url);
-      const data = await response.json();
+      const response = await axios.post(url, body);
+      const data = response.data;
+      console.log("data ::::: ", data);
       setTodos(data.todos);
       setTotalPages(data.pagination.totalPages);
     } catch (error) {
@@ -46,7 +49,7 @@ const TodoManager = ({ selectedUser, tags, priorityList }) => {
   };
 
   const addTodo = async (data) => {
-    const url = `${import.meta.env.VITE_BASE_URL}/api/todos`;
+    const url = `${import.meta.env.VITE_BASE_URL}/api/todos/add_todo`;
     try {
       const response = await axios.post(url, data);
       console.log("object ::::: ", response);
@@ -58,19 +61,6 @@ const TodoManager = ({ selectedUser, tags, priorityList }) => {
     }
   };
 
-  useEffect(() => {
-    if (selectedUser) {
-      fetchTodos();
-    }
-  }, [selectedUser, currentPage]);
-
-  useEffect(() => {
-    if (selectedUser) {
-      setCurrentPage(1);
-      setTotalPages(1);
-    }
-  }, [selectedUser]);
-
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage((prevPage) => prevPage + 1);
@@ -81,39 +71,6 @@ const TodoManager = ({ selectedUser, tags, priorityList }) => {
     if (currentPage > 1) {
       setCurrentPage((prevPage) => prevPage - 1);
     }
-  };
-
-  const getFilteredTodos = () => {
-    const selectedTags = tags
-      ?.filter((tag) => tag?.isSelected)
-      ?.map((tag) => tag?.name)
-      .filter(Boolean);
-
-    const selectedPriorities = priorityList
-      ?.filter((priority) => priority?.isSelected)
-      ?.map((priority) => priority?.value)
-      .filter(Boolean);
-
-    if (
-      selectedTags?.length === tags?.length &&
-      selectedPriorities?.length === priorityList?.length
-    ) {
-      return todos;
-    }
-
-    const filteredTodos = todos?.filter((todo) => {
-      const matchesTags =
-        !selectedTags?.length ||
-        todo?.tags?.some((tag) => selectedTags.includes(tag));
-
-      const matchesPriority =
-        !selectedPriorities?.length ||
-        selectedPriorities.includes(todo?.priority);
-
-      return matchesTags && matchesPriority;
-    });
-
-    return filteredTodos;
   };
 
   const handleSearchChange = (e) => {
@@ -208,6 +165,35 @@ const TodoManager = ({ selectedUser, tags, priorityList }) => {
     getTodoDetails(id);
   };
 
+  useEffect(() => {
+    if (selectedUser) {
+      fetchTodos();
+    }
+  }, [selectedUser, currentPage, filters, sortBy]);
+
+  useEffect(() => {
+    if (selectedUser) {
+      setCurrentPage(1);
+      setTotalPages(1);
+    }
+  }, [selectedUser]);
+
+  useEffect(() => {
+    console.log(todos);
+  }, [todos]);
+
+  const sortByDate = () => {
+    sortBy?.date === "desc"
+      ? setSortBy({ date: "asc" })
+      : setSortBy({ date: "desc" });
+  };
+
+  const sortByPriority = () => {
+    sortBy?.title === "asc"
+      ? setSortBy({ title: "desc" })
+      : setSortBy({ title: "asc" });
+  };
+
   return (
     <Box
       sx={{
@@ -224,14 +210,29 @@ const TodoManager = ({ selectedUser, tags, priorityList }) => {
           alignItems: "center",
         }}
       >
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{ textTransform: "none" }}
-          onClick={() => setOpen(true)}
+        <Box
+          sx={{
+            display: "flex",
+            // justifyContent: "space-between",
+            gap: "10px",
+            alignItems: "center",
+          }}
         >
-          Add Todo
-        </Button>
+          <Button variant="outlined" onClick={sortByDate}>
+            sort by date
+          </Button>
+          <Button variant="outlined" onClick={sortByPriority}>
+            sort by title
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            sx={{ textTransform: "none" }}
+            onClick={() => setOpen(true)}
+          >
+            Add Todo
+          </Button>
+        </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <TextField
@@ -264,7 +265,7 @@ const TodoManager = ({ selectedUser, tags, priorityList }) => {
         ) : (
           <>
             <TodoList
-              todoList={getFilteredTodos()}
+              todoList={todos}
               handleDelete={handleDelete}
               handleCheckboxChange={handleCheckboxChange}
               handleOpenTodoDetails={handleOpenTodoDetails}

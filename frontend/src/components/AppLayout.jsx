@@ -12,29 +12,28 @@ const AppLayout = () => {
   const [priorityList, setPriorityList] = useState(
     addIsSelected(PRIORITY_LIST, true)
   );
+  const [filters, setFilters] = useState({
+    tags: [],
+    priority: priorityList.map((p) => p.value),
+  });
   const selectedUser = useSelectedUser();
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchTags = async () => {
-      setLoading(true);
-      try {
-        const url = `${import.meta.env.VITE_BASE_URL}/api/users/tags?user_id=${
-          selectedUser?.id
-        }`;
-        const response = await fetch(url);
-        const data = await response.json();
-        setTags(addIsSelected(data, true));
-      } catch (error) {
-        console.error("Error fetching tags:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (selectedUser) {
-      fetchTags();
+  const fetchTags = async (fetchAll) => {
+    setLoading(true);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/api/users/tags?user_id=${
+        selectedUser?.id
+      }${fetchAll ? "&is_all=true" : ""}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      setTags(addIsSelected(data, true));
+    } catch (error) {
+      console.error("Error fetching tags:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [selectedUser]);
+  };
 
   function handleTagChange(tag) {
     const updatedTags = tags.map((t) => {
@@ -56,6 +55,43 @@ const AppLayout = () => {
     setPriorityList(updatedPriorityList);
   }
 
+  const handleFilters = () => {
+    const selectedTags = tags
+      .filter((tag) => tag.isSelected)
+      .map((tag) => tag.id);
+    const selectedPriorities = priorityList
+      .filter((p) => p.isSelected)
+      .map((p) => p.value);
+    setFilters({
+      tags: selectedTags.length === tags.length ? [] : selectedTags,
+      priority: selectedPriorities,
+    });
+  };
+
+  const handleReset = () => {
+    const allTags = tags.map((tag) => ({ ...tag, isSelected: true }));
+    const allPriorities = priorityList.map((p) => ({ ...p, isSelected: true }));
+    setTags(allTags);
+    setPriorityList(allPriorities);
+
+    setFilters({
+      tags: [],
+      priority: allPriorities.map((p) => p.value),
+    });
+  };
+
+  const fetchAllTags = () => {
+    if (selectedUser) {
+      fetchTags(true);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedUser) {
+      fetchTags();
+    }
+  }, [selectedUser]);
+
   return (
     <>
       <Header />
@@ -74,12 +110,16 @@ const AppLayout = () => {
           handleTagChange={handleTagChange}
           handlePriorityChange={handlePriorityChange}
           loading={loading}
+          handleFilters={handleFilters}
+          handleReset={handleReset}
+          fetchAllTags={fetchAllTags}
         />
         {selectedUser ? (
           <TodoManager
             selectedUser={selectedUser}
             tags={tags}
             priorityList={priorityList}
+            filters={filters}
           />
         ) : null}
       </Box>

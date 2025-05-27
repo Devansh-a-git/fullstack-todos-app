@@ -2,17 +2,70 @@ const express = require("express");
 const pool = require("../index");
 const router = express.Router();
 const { Parser } = require("json2csv");
+const multer = require("multer");
+const fs = require("fs").promises;
+const path = require("path");
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: async function (req, file, cb) {
+    const dir = path.join(__dirname, "../data");
+    try {
+      await fs.mkdir(dir, { recursive: true });
+      cb(null, dir);
+    } catch (error) {
+      cb(error, null);
+    }
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage: storage });
 
 // Add pagination to GET /todos
-router.get("/", async (req, res) => {
+router.post("/", async (req, res) => {
   const { user_id, page = 1, limit = 10, search = "" } = req.query; // Default to page 1 and limit 10
+  const { filters = { tags: [], priority: [] }, sortBy = { date: "desc" } } =
+    req.body;
+
   if (!user_id) {
     return res.status(400).send("user_id query parameter is required");
   }
 
+  const orderBy = sortBy?.date
+    ? `t.updated_at ${sortBy.date}`
+    : `t.title ${sortBy.title}`;
+
   const offset = (page - 1) * limit;
 
   try {
+    // Build the WHERE clause for filtering
+    let paginationWhereClause =
+      "t.user_id = $1 AND (t.title ILIKE $2 OR t.description ILIKE $2)";
+    const paginationQueryParams = [user_id, `%${search}%`];
+
+    let whereClause =
+      "t.user_id = $1 AND (t.title ILIKE $4 OR t.description ILIKE $4)";
+    const queryParams = [user_id, limit, offset, `%${search}%`];
+
+    // Add priority filter if provided
+    if (filters.priority && filters.priority.length > 0) {
+      queryParams.push(filters.priority);
+      paginationQueryParams.push(filters.priority);
+      whereClause += ` AND t.priority = ANY($${queryParams.length})`;
+      paginationWhereClause += ` AND t.priority = ANY($${paginationQueryParams.length})`;
+    }
+
+    // Add tags filter if provided
+    if (filters.tags && filters.tags.length > 0) {
+      queryParams.push(filters.tags);
+      paginationQueryParams.push(filters.tags);
+      whereClause += ` AND tg.id = ANY($${queryParams.length})`;
+      paginationWhereClause += ` AND tg.id = ANY($${paginationQueryParams.length})`;
+    }
+
     const todosResult = await pool.query(
       `SELECT t.*, 
               COALESCE(ARRAY_AGG(DISTINCT tg.name) FILTER (WHERE tg.name IS NOT NULL), '{}') AS tags, 
@@ -22,17 +75,20 @@ router.get("/", async (req, res) => {
        LEFT JOIN Tags tg ON tt.tag_id = tg.id
        LEFT JOIN Todo_Assigned_Users tu ON t.id = tu.todo_id
        LEFT JOIN Users u ON tu.user_id = u.id
-       WHERE t.user_id = $1 AND (t.title ILIKE $4 OR t.description ILIKE $4)
+       WHERE ${whereClause}
        GROUP BY t.id
+       ORDER BY ${orderBy}
        LIMIT $2 OFFSET $3`,
-      [user_id, limit, offset, `%${search}%`]
+      queryParams
     );
 
     const totalTodosResult = await pool.query(
-      `SELECT COUNT(*) AS total 
-       FROM Todos 
-       WHERE user_id = $1 AND (title ILIKE $2 OR description ILIKE $2)`,
-      [user_id, `%${search}%`]
+      `SELECT COUNT(DISTINCT t.id) AS total 
+       FROM Todos t
+       LEFT JOIN Todo_Tags tt ON t.id = tt.todo_id
+       LEFT JOIN Tags tg ON tt.tag_id = tg.id
+       WHERE ${paginationWhereClause}`,
+      paginationQueryParams
     );
 
     const todos = todosResult.rows;
@@ -44,9 +100,9 @@ router.get("/", async (req, res) => {
       pagination: {
         total,
         totalPages,
-        currentPage: parseInt(page, 10),
-        limit: parseInt(limit, 10),
-        numberOfPages: totalPages, // Include number of pages
+        currentPage: page,
+        limit: limit,
+        numberOfPages: totalPages,
       },
     });
   } catch (err) {
@@ -66,7 +122,7 @@ const normalizePriority = (priority) => {
 };
 
 // POST /todos
-router.post("/", async (req, res) => {
+router.post("/add_todo", async (req, res) => {
   const { title, description, priority, user_id, tags, assignedUsers } =
     req.body; // Accept tags in the request body
   try {
@@ -364,6 +420,142 @@ router.get("/:id/export", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Error exporting todos");
+  }
+});
+
+router.post("/import", upload.single("file"), async (req, res) => {
+  const { user_id } = req.query;
+  if (!user_id) {
+    return res.status(400).send("user_id query parameter is required");
+  }
+
+  if (!req.file) {
+    return res.status(400).send("No file uploaded");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    if (!req.file.originalname.endsWith(".csv")) {
+      throw new Error("Please upload a CSV file.");
+    }
+
+    const fileContent = await fs.readFile(req.file.path, "utf-8");
+    let todos = [];
+
+    const lines = fileContent.split("\n");
+    const headers = lines[0].split(",");
+
+    todos = lines
+      .slice(1)
+      .map((line) => {
+         console.log(line);
+        const values = line.split(",");
+        const todo = {};
+        headers.forEach((header, index) => {
+          debugger
+          // console.log(values, index, values[index]?.trim());
+          let value = values[index]?.trim();
+          if (header === "tags" || header === "assigned_users") {
+            try {
+              debugger
+              value = value.split(',') // JSON.parse(value.replace(/'/g, '"')) || [];
+            } catch (e) {
+              value = [];
+            }
+          }
+          todo[header.trim()] = value;
+        });
+        return todo;
+      })
+      .filter((todo) => todo.title);
+
+    if (todos.length === 0) {
+      throw new Error("No valid todos found in the CSV file.");
+    }
+
+    await client.query("BEGIN");
+
+    for (const todo of todos) {
+      const normalizedPriority = normalizePriority(todo.priority);
+
+      const todoResult = await client.query(
+        "INSERT INTO Todos (title, description, priority, completed, user_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+        [
+          todo.title,
+          todo.description,
+          normalizedPriority || "Medium",
+          todo.completed || false,
+          user_id,
+        ]
+      );
+
+      const newTodo = todoResult.rows[0];
+
+      // console.log("qwerty :::::: ", todo);
+
+      if (todo.tags && Array.isArray(todo.tags)) {
+        for (const tag of todo.tags) {
+          let tagResult = await client.query(
+            "SELECT * FROM Tags WHERE name = $1",
+            [tag]
+          );
+          let tagId;
+
+          if (tagResult.rows.length === 0) {
+            tagResult = await client.query(
+              "INSERT INTO Tags (name) VALUES ($1) RETURNING *",
+              [tag]
+            );
+          }
+          tagId = tagResult.rows[0].id;
+
+          await client.query(
+            "INSERT INTO Todo_Tags (todo_id, tag_id) VALUES ($1, $2)",
+            [newTodo.id, tagId]
+          );
+        }
+      }
+
+      if (todo.assigned_users && Array.isArray(todo.assigned_users)) {
+        for (const username of todo.assigned_users) {
+          const userResult = await client.query(
+            "SELECT id FROM Users WHERE username = $1",
+            [username]
+          );
+          if (userResult.rows.length > 0) {
+            await client.query(
+              "INSERT INTO Todo_Assigned_Users (todo_id, user_id) VALUES ($1, $2)",
+              [newTodo.id, userResult.rows[0].id]
+            );
+          }
+        }
+      }
+    }
+
+    await client.query("COMMIT");
+
+    await fs.unlink(req.file.path);
+
+    res
+      .status(201)
+      .json({ message: `Successfully imported ${todos.length} todos` });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error importing todos:", error);
+
+    try {
+      await fs.unlink(req.file.path);
+    } catch (unlinkError) {
+      console.error("Error deleting file:", unlinkError);
+    }
+
+    res.status(500).json({
+      error: "Error importing todos",
+      details: error.message,
+    });
+  } finally {
+    client.release();
   }
 });
 
